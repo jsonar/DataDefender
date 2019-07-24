@@ -69,8 +69,9 @@ public abstract class Discoverer {    // implements IDiscoverer {
      * @param dataDiscoveryProperties
      * @param modelName
      * @return Model
+     * @throws IOException 
      */
-    public Model createModel(final Properties dataDiscoveryProperties, final String modelName) {
+    public Model createModel(final Properties dataDiscoveryProperties, final String modelName) throws IOException {
         InputStream          modelInToken = null;
         InputStream          modelIn      = null;
         TokenizerModel       modelToken;
@@ -80,16 +81,29 @@ public abstract class Discoverer {    // implements IDiscoverer {
 
         try {
             log.debug("Model name: " + modelName);
-            modelInToken = new FileInputStream(dataDiscoveryProperties.getProperty("english_tokens"));
-            log.debug(dataDiscoveryProperties.getProperty(modelName));
-            modelIn    = new FileInputStream(dataDiscoveryProperties.getProperty(modelName));
+            
+            log.info(dataDiscoveryProperties.getProperty(modelName));
+            //modelInToken = new FileInputStream(dataDiscoveryProperties.getProperty("english_tokens"));
+            modelInToken = Discoverer.class.getResourceAsStream("/"+dataDiscoveryProperties.getProperty("english_tokens"));
+            if (modelInToken==null)
+            	throw new IOException("Unable to find system resource "+"/"+dataDiscoveryProperties.getProperty("english_tokens"));
+            
+            modelIn    = Discoverer.class.getResourceAsStream("/"+dataDiscoveryProperties.getProperty(modelName));
+            if (modelIn==null)
+            	throw new IOException("Unable to find system resource "+"/"+dataDiscoveryProperties.getProperty(modelName));
+
+            log.info(String.format("Loading model of size %s",modelIn==null?"unknown":Integer.valueOf(modelIn.available()).toString()));
+            //modelIn    = new FileInputStream(dataDiscoveryProperties.getProperty(modelName));
             modelToken = new TokenizerModel(modelInToken);
             tokenizer  = new TokenizerME(modelToken);
             model      = new TokenNameFinderModel(modelIn);
             nameFinder = new NameFinderME(model);
             modelInToken.close();
             modelIn.close();
-        } catch (FileNotFoundException ex) {
+            
+            return new Model(tokenizer, nameFinder, modelName);
+            
+        } catch (IOException ex) {
             log.error(ex.toString());
 
             try {
@@ -103,11 +117,11 @@ public abstract class Discoverer {    // implements IDiscoverer {
             } catch (IOException ioe) {
                 log.error(ioe.toString());
             }
-        } catch (IOException ex) {
-            log.error(ex.toString());
+            
+            throw ex;
+            
         }
-
-        return new Model(tokenizer, nameFinder, modelName);
+        
     }
 
     public void createRequirement(final String fileName) throws DatabaseDiscoveryException {

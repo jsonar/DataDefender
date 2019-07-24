@@ -20,26 +20,30 @@
 
 package com.strider.datadefender.database.metadata;
 
-import com.strider.datadefender.utils.CommonUtils;
+import static org.apache.log4j.Logger.getLogger;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.log4j.Logger;
 
-import static org.apache.log4j.Logger.getLogger;
-
+import com.strider.datadefender.utils.CommonUtils;
 import com.strider.datadefender.utils.SQLToJavaMapping;
-import java.util.Locale;
 
 /**
  * Class to hold common logic between different metadata implementations.
@@ -113,6 +117,20 @@ public abstract class MetaData implements IMetaData {
                 includeTablesList = Arrays.asList(includeTables.split(","));
             }            
 
+            // Ignore column table(s) excluded from the analysis
+            Map<String,Set<String>> excludedColumns = new HashMap<String,Set<String>>();
+            if (databaseProperties.containsKey("exclude-columns")) {
+            	final String cols = databaseProperties.getProperty("exclude-columns");
+            	excludedColumns = cols==null||cols.isEmpty()?Collections.emptyMap()
+	            	:Arrays.asList(cols.split(",")).stream()
+	            	.map(val -> val.split("\\."))
+	            	.map(pair -> Pair.of(pair[0], pair[1]))
+	            	.collect(Collectors.groupingBy(p -> p.getLeft())).entrySet().stream()
+	            	.map(entry -> Pair.of(entry.getKey(), 
+	            			entry.getValue().stream().map(p -> p.getValue()).collect(Collectors.toSet())))            	
+	            	.collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue()));
+            }
+            
             log.info("Fetching table names from schema " + schemaName);
 
             try (ResultSet tableRS = getTableRS(md)) {
@@ -149,8 +167,8 @@ public abstract class MetaData implements IMetaData {
                             continue;
                         }
                     }                    
-                    
-                    String schemaTableName = null;
+
+                    String schemaTableName = tableName;
 
                     if ((schemaName != null) &&!schemaName.equals("")) {
                         schemaTableName = schemaName + "." + tableName;
@@ -191,6 +209,13 @@ public abstract class MetaData implements IMetaData {
                         log.debug(tableName);
 
                         while (columnRS.next()) {
+                        	
+                        	// skip excluded columns
+                            if (excludedColumns.containsKey(tableName) 
+                            		&& excludedColumns.get(tableName).contains(getColumnName(columnRS)))
+                            	continue;
+                                
+                        	
                             log.debug(getColumnName(columnRS));
                             map.add(new MatchMetaData(schemaName,
                                                       tableName,

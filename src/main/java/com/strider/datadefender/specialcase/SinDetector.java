@@ -19,20 +19,18 @@
 
 package com.strider.datadefender.specialcase;
 
+import static org.apache.log4j.Logger.getLogger;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import static org.apache.log4j.Logger.getLogger;
-
 import com.strider.datadefender.Probability;
 import com.strider.datadefender.database.metadata.MatchMetaData;
-import com.strider.datadefender.file.metadata.FileMatchMetaData;
 import com.strider.datadefender.extensions.BiographicFunctions;
 import com.strider.datadefender.file.metadata.FileMatchMetaData;
 import com.strider.datadefender.utils.CommonUtils;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * @author Armenak Grigoryan

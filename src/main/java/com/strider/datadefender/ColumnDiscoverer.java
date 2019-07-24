@@ -46,7 +46,7 @@ public class ColumnDiscoverer extends Discoverer {
     private static final Logger log = getLogger(ColumnDiscoverer.class);
 
     public List<MatchMetaData> discover(final IDBFactory factory, 
-            final Properties columnProperties, String vendor)
+            final List<String> patterns, String vendor)
             throws DatabaseDiscoveryException {
         log.info("Column discovery in process");
 
@@ -54,9 +54,7 @@ public class ColumnDiscoverer extends Discoverer {
         final List<MatchMetaData> map           = metaData.getMetaData(vendor);
         List<MatchMetaData>       uniqueMatches = null;
 
-        // Converting HashMap keys into ArrayList
-        @SuppressWarnings({ "rawtypes", "unchecked" })
-        final List<String> suspList = new ArrayList(columnProperties.keySet());
+        final List<String> suspList = patterns;
 
         suspList.remove("tables");    // removing 'special' tables property that's not a pattern
         matches = new ArrayList<>();
@@ -70,8 +68,11 @@ public class ColumnDiscoverer extends Discoverer {
                 final String columnName = data.getColumnName();
 
                 if (p.matcher(columnName.toLowerCase(Locale.ENGLISH)).matches()) {
-                    log.debug(data.toVerboseStr());
-                    matches.add(data);
+                    MatchMetaData out = new MatchMetaData(data);
+                    out.setModel(p.pattern());
+                    out.setAverageProbability(1.0);
+                    log.debug(out.toVerboseStr());
+                    matches.add(out);
                 }
             }
         }

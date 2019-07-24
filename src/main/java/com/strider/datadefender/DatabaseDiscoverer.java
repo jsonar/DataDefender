@@ -20,6 +20,7 @@
 
 package com.strider.datadefender;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.lang.Double.parseDouble;
 
@@ -145,13 +147,18 @@ public class DatabaseDiscoverer extends Discoverer {
             log.info("Processing model " + model);
             log.info("********************************");
 
-            final Model modelPerson = createModel(dataDiscoveryProperties, model);
-
-            matches = discoverAgainstSingleModel(factory,
-                                                 dataDiscoveryProperties,
-                                                 modelPerson,
-                                                 probabilityThreshold,vendor);
-            finalList = ListUtils.union(finalList, matches);
+            try {
+	            final Model modelPerson = createModel(dataDiscoveryProperties, model);
+	
+	            matches = discoverAgainstSingleModel(factory,
+	                                                 dataDiscoveryProperties,
+	                                                 modelPerson,
+	                                                 probabilityThreshold,vendor);
+	            finalList = ListUtils.union(finalList, matches);
+            
+            } catch (IOException e) {
+            	log.error(String.format("Failed to load model %s. Skipping.", model), e);
+            }
         }
 
         final DecimalFormat decimalFormat = new DecimalFormat("#.##");
@@ -277,7 +284,7 @@ public class DatabaseDiscoverer extends Discoverer {
         matches = new ArrayList<>();
 
         MatchMetaData             specialCaseData      = null;
-        final List<MatchMetaData> specialCaseDataList  = new ArrayList();
+        
         boolean                   specialCase          = false;
         final String              extentionList        = dataDiscoveryProperties.getProperty("extentions");
         String[]                  specialCaseFunctions = null;
@@ -331,6 +338,9 @@ public class DatabaseDiscoverer extends Discoverer {
                                                                  + " WHERE " + columnName + " IS NOT NULL ",
                                                                  limit);
 
+            
+            final List<MatchMetaData> specialCaseDataList  = new ArrayList();
+            
             log.debug("Executing query against database: " + query);
 
             try (Statement stmt = factory.getConnection().createStatement();
@@ -426,15 +436,22 @@ public class DatabaseDiscoverer extends Discoverer {
                 data.setProbabilityList(probabilityList);
                 matches.add(data);
             }
-        }
-
-        // Special processing
-        if ((specialCaseDataList != null) &&!specialCaseDataList.isEmpty()) {
-            log.info("Special case data is processed :" + specialCaseDataList.toString());
-
-            for (final MatchMetaData specialData : specialCaseDataList) {
-                matches.add(specialData);
-            }
+            
+            Map<String, List<MatchMetaData>> specialByModel = specialCaseDataList.stream().collect(Collectors.groupingBy(d -> d.getModel()));
+            List<MatchMetaData> specialAgregated = specialByModel.entrySet().stream().map(entry -> {
+            	
+            	String modelName = entry.getKey();
+            	double ave = entry.getValue().stream()
+            		.mapToDouble(d -> d.getAverageProbability())
+            		.average().orElse(0.0);
+            	
+            	MatchMetaData out = new MatchMetaData(entry.getValue().get(0));
+            	out.setModel(modelName);
+            	out.setAverageProbability(ave);
+            	return out;
+            }).filter(d -> d.getAverageProbability()>probabilityThreshold).collect(Collectors.toList());
+            
+            matches.addAll(specialAgregated);
         }
 
         return matches;

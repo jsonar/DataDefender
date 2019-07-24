@@ -247,7 +247,7 @@ public class DataDefender {
                     final Properties       columnProperties   = loadProperties(columnPropertyFile);
                     final ColumnDiscoverer discoverer         = new ColumnDiscoverer();
 
-                    discoverer.discover(dbFactory, columnProperties, props.getProperty("vendor"));
+                    discoverer.discover(dbFactory, columnProperties.keySet().stream().map(s -> s.toString()).collect(Collectors.toList()), props.getProperty("vendor"));
 
                     if (line.hasOption('r')) {
                         discoverer.createRequirement("Sample-Requirement.xml");

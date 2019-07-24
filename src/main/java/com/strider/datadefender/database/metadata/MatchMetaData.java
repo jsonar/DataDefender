@@ -57,6 +57,16 @@ public class MatchMetaData {
         this.columnSize = columnSize;
     }
 
+    public MatchMetaData(final MatchMetaData other) {
+		this.schemaName = other.columnName;
+		this.tableName  = other.tableName;
+		this.pKeys      = other.pKeys;
+		this.fKeys      = other.fKeys;        
+		this.columnName = other.columnName;
+		this.columnType = other.columnType;
+		this.columnSize = other.columnSize;
+	}
+    
     /**
      * @return comparator used for sorting
      */

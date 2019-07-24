@@ -19,19 +19,17 @@
 
 package com.strider.datadefender.specialcase;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.log4j.Logger;
-
 import static org.apache.log4j.Logger.getLogger;
 
-import com.strider.datadefender.file.metadata.FileMatchMetaData;
-import com.strider.datadefender.utils.CommonUtils;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.apache.commons.validator.EmailValidator;
-import org.apache.commons.validator.EmailValidator;
+import org.apache.log4j.Logger;
+
+import com.strider.datadefender.database.metadata.MatchMetaData;
+import com.strider.datadefender.file.metadata.FileMatchMetaData;
+import com.strider.datadefender.utils.CommonUtils;
 
 /**
  * @author Armenak Grigoryan
@@ -62,6 +60,23 @@ public class EmailDetector implements SpecialCase {
         return null;
     }    
     
+    public static MatchMetaData detectEmail(final MatchMetaData metaData, final String text) {
+
+    	String emailValue = "";
+        
+        if (!CommonUtils.isEmptyString(text)) {
+            emailValue = text;
+        }
+
+        if (isValidEmail(emailValue)) {
+                metaData.setAverageProbability(1.0);
+                metaData.setModel("email");
+                return metaData;
+        }
+        
+        return null;
+    }    
+
     /**
      * Algorithm is taken from https://en.wikipedia.org/wiki/Social_Insurance_Number
      * @param sin
@@ -69,12 +84,7 @@ public class EmailDetector implements SpecialCase {
      */
     private static boolean isValidEmail(final String email) {
         
-	EmailValidator eValidator = EmailValidator.getInstance();
-	if(eValidator.isValid(email)){
-            LOG.info("*************** Email " + email + " is valid");
-            return true;
-	}else{
-            return false;
-	}        
+		EmailValidator eValidator = EmailValidator.getInstance();
+		return eValidator.isValid(email);
     }    
 }
